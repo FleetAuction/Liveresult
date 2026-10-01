@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id" class="bg-[#0857C3] text-slate-800">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Bidding Lelang Mobil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="p-4 md:p-6 font-sans min-h-screen">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="bg-white p-4 rounded-2xl shadow-lg mb-6 flex justify-between items-center">
+            <h1 class="text-lg md:text-xl font-bold text-[#0857C3] flex items-center gap-2">
+                <i class="fa-solid fa-gavel"></i> Live View Bidding - Penjualan Aset BRI Finance
+            </h1>
+            
+        </header>
+
+        <!-- Grid Container Mobil -->
+        <div id="carContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <p class="text-white text-center col-span-full">Memuat data lelang dari Google Sheets...</p>
+        </div>
+    </div>
+
+    <script>
+        // TEMPELKAN URL API SHEETBEST / SHEETY ANDA DI SINI
+        const API_URL = "https://api.sheetbest.com/sheets/09537d18-fc82-4b6a-b185-f1538154dbd7";
+
+        // Fungsi format mata uang IDR
+        function formatIDR(amount) {
+            if (!amount || isNaN(amount)) return "Rp 0";
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount);
+        }
+
+        async function fetchCars() {
+            try {
+                const res = await fetch(API_URL);
+                const cars = await res.json();
+                let html = '';
+
+                if (!cars || cars.length === 0) {
+                    document.getElementById('carContainer').innerHTML = `<p class="text-white text-center col-span-full">Belum ada data lelang.</p>`;
+                    return;
+                }
+                
+                cars.forEach(car => {
+                    // Normalisasi teks status
+                    const statusText = (car.status || 'LIVE').trim().toUpperCase();
+                    
+                    // Cek kondisi status LIVE vs SOLD
+                    let statusBadgeHtml = '';
+                    if (statusText === 'SOLD' || statusText === 'CLOSED') {
+                        // Merah & Diam (Tidak Kedip)
+                        statusBadgeHtml = `
+                            <span class="px-2.5 py-1 rounded-full text-xs font-black bg-rose-600 text-white border border-rose-700 shadow flex items-center gap-1.5">
+                                <i class="fa-solid fa-lock text-[10px]"></i>
+                                ${statusText}
+                            </span>
+                        `;
+                    } else {
+                        // Hijau & Kedip Glow
+                        statusBadgeHtml = `
+                            <span class="status-live px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500 text-white border border-emerald-400 shadow-lg flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                                ${statusText}
+                            </span>
+                        `;
+                    }
+
+                    html += `
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-200 flex flex-col justify-between hover:shadow-2xl transition">
+                        <div>
+                            <!-- Header Foto Mobil -->
+                            <div class="relative h-48 w-full bg-slate-100">
+                                <img src="${car.image || 'https://placehold.co/600x400?text=Foto+Mobil'}" 
+                                     alt="${car.model || 'Mobil'}" 
+                                     class="w-full h-full object-cover"
+                                     onerror="this.onerror=null; this.src='https://placehold.co/600x400?text=Gambar+Tidak+Valid';">
+                                
+                                <div class="absolute top-3 left-3">
+                                    ${statusBadgeHtml}
+                                </div>
+                                
+                                <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-slate-900 font-mono text-xs font-bold shadow-sm border border-slate-200">
+                                    ${car.nopol || '-'}
+                                </div>
+                            </div>
+
+                            <!-- Detail Informasi Mobil -->
+                            <div class="p-5">
+                                <h3 class="font-bold text-base text-slate-900 leading-snug">${car.model || 'Tanpa Nama Model'}</h3>
+                                
+                                <div class="mt-3 flex items-center gap-2 flex-wrap text-xs text-slate-600">
+                                    <span class="bg-slate-100 px-2 py-1 rounded-md border"><i class="fa-solid fa-gauge-high text-[#0857C3]"></i> ${car.km || '-'}</span>
+                                    <span class="bg-slate-100 px-2 py-1 rounded-md border"><i class="fa-solid fa-calendar-check text-[#0857C3]"></i> STNK: ${car.stnk || '-'}</span>
+                                </div>
+
+                                <!-- Box Perbandingan Harga: Open Bid vs Current Bid -->
+                                <div class="mt-4 grid grid-cols-2 gap-2">
+                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                        <span class="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Open Bid</span>
+                                        <div class="text-sm font-bold text-slate-600 font-mono mt-0.5">${formatIDR(car.openBid)}</div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-blue-50 rounded-xl border border-blue-200">
+                                        <span class="text-[10px] text-[#0857C3] font-bold block uppercase tracking-wider">Current Bid</span>
+                                        <div class="text-base font-black text-[#0857C3] font-mono mt-0.5">${formatIDR(car.currentBid)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                
+                document.getElementById('carContainer').innerHTML = html;
+            } catch (err) {
+                console.error("Gagal memuat data dari API:", err);
+            }
+        }
+
+        // Jalankan saat halaman pertama kali dibuka
+        fetchCars();
+
+        // Auto-refresh data tiap 10 detik
+        setInterval(fetchCars, 10000);
+    </script>
+</body>
+</html>
